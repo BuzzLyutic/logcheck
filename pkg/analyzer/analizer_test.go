@@ -11,3 +11,13 @@ func TestAnalyzerSmoke(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analyzer.Analyzer, "slogbasic")
 }
+
+func TestAnalyzerSlogRules(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analyzer.Analyzer, "slogrules")
+}
+
+func TestAnalyzerZapRules(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analyzer.Analyzer, "zaprules")
+}
