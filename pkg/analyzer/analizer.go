@@ -18,10 +18,19 @@ var Analyzer = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
 
-// rules это множество активных проверок.
-var rules []Rule
+// defaultRules возвращает полное множество доступных проверок.
+func defaultRules() []Rule {
+	return []Rule{
+		&LowercaseRule{},
+		&EnglishRule{},
+		&SpecialCharsRule{},
+		&SensitiveRule{},
+	}
+}
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	rules := defaultRules()
+
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
