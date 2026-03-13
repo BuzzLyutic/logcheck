@@ -6,7 +6,8 @@ import (
 	"github.com/BuzzLyutic/logcheck/pkg/analyzer"
 )
 
-func TestAnalyzerSkeleton(t *testing.T) {
+// TestAnalyzerSmoke проверяет, что анализатор работает без ошибок в коде, содержащем вызовы slog.
+func TestAnalyzerSmoke(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, analyzer.Analyzer, "example")
+	analysistest.Run(t, testdata, analyzer.Analyzer, "slogbasic")
 }
