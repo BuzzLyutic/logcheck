@@ -2,8 +2,8 @@
 package main
 
 import (
-	"golang.org/x/tools/go/analysis/singlechecker"
 	"github.com/BuzzLyutic/logcheck/pkg/analyzer"
+	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
 func main() {

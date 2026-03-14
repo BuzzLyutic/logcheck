@@ -1,9 +1,9 @@
 package analyzer_test
 
 import (
-	"testing"
-	"golang.org/x/tools/go/analysis/analysistest"
 	"github.com/BuzzLyutic/logcheck/pkg/analyzer"
+	"golang.org/x/tools/go/analysis/analysistest"
+	"testing"
 )
 
 // TestAnalyzerSmoke проверяет, что анализатор работает без ошибок в коде, содержащем вызовы slog.

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// defaultSensitiveKeywords это список ключевых слов, которые указывают на то, 
+// defaultSensitiveKeywords это список ключевых слов, которые указывают на то,
 // что в журнал заносятся конфиденциальные данные.
 var defaultSensitiveKeywords = []string{
 	"password", "passwd", "pwd",
