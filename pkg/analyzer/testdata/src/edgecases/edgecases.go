@@ -13,7 +13,7 @@ func edgeCases() {
 	slog.Info("[server] ready")
 
 	// Одна заглавная буква.
-	slog.Info("A")  // want `log message must start with a lowercase letter`
+	slog.Info("A") // want `log message must start with a lowercase letter`
 
 	// Одна строчная буква — ОК.
 	slog.Info("a")
@@ -30,7 +30,7 @@ func edgeCases() {
 	slog.Info("café connection") // want `log message must contain only English characters`
 
 	// Японские символы.
-	slog.Info("サーバー起動")  // want `log message must contain only English characters`
+	slog.Info("サーバー起動") // want `log message must contain only English characters`
 
 	// Только цифры и ASCII-пунктуация — ОК.
 	slog.Info("200 OK, latency=15ms")
