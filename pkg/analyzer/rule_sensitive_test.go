@@ -11,55 +11,75 @@ func TestSensitiveRule(t *testing.T) {
 	tests := []struct {
 		name    string
 		lc      *LogCall
-		wantHas string // подстрока, которая должна появиться в диагностике ("" = no diagnostic)
+		wantHas string // подстрока в диагностике ("" = нарушения нет)
 	}{
 		{
-			name:    "pure literal with keyword is OK",
+			name:    "чистый литерал с ключевым словом — ОК",
 			lc:      &LogCall{MsgLit: "token validated", MsgParts: []string{"token validated"}},
 			wantHas: "",
 		},
 		{
-			name:    "pure literal password reset is OK",
-			lc:      &LogCall{MsgLit: "password reset email sent", MsgParts: []string{"password reset email sent"}},
+			name:    "литерал password reset — ОК",
+			lc:      &LogCall{MsgLit: "password has been reset", MsgParts: []string{"password has been reset"}},
 			wantHas: "",
 		},
 		{
-			name:    "concatenation with password keyword",
+			name:    "конкатенация с password",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"user password: "}},
 			wantHas: `"password"`,
 		},
 		{
-			name:    "concatenation with token keyword",
+			name:    "конкатенация с token",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"token: "}},
 			wantHas: `"token"`,
 		},
 		{
-			name:    "concatenation with api_key",
+			name:    "конкатенация с api_key",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"api_key="}},
 			wantHas: `"api_key"`,
 		},
 		{
-			name:    "concatenation with secret",
+			name:    "конкатенация с secret",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"secret: "}},
 			wantHas: `"secret"`,
 		},
 		{
-			name:    "keyword is case-insensitive",
+			name:    "конкатенация с credentials",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"credentials: "}},
+			wantHas: `"credential"`,
+		},
+		{
+			name:    "конкатенация с private_key",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"private_key="}},
+			wantHas: `"private_key"`,
+		},
+		{
+			name:    "ключевое слово в UPPER CASE",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"PASSWORD: "}},
 			wantHas: `"password"`,
 		},
 		{
-			name:    "concatenation without sensitive keyword",
+			name:    "ключевое слово как подстрока (userPassword)",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"userPassword="}},
+			wantHas: `"password"`,
+		},
+		{
+			name:    "конкатенация без ключевых слов — ОК",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"user: "}},
 			wantHas: "",
 		},
 		{
-			name:    "empty parts",
+			name:    "похожее слово passport — ОК",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"passport: "}},
+			wantHas: "",
+		},
+		{
+			name:    "пустые части",
 			lc:      &LogCall{MsgLit: "", MsgParts: nil},
 			wantHas: "",
 		},
 		{
-			name:    "pure variable no parts",
+			name:    "только переменная (без частей)",
 			lc:      &LogCall{MsgLit: "", MsgParts: nil},
 			wantHas: "",
 		},
@@ -70,11 +90,11 @@ func TestSensitiveRule(t *testing.T) {
 			got := rule.Check(tt.lc)
 			if tt.wantHas == "" {
 				if got != "" {
-					t.Errorf("Check() = %q, want no diagnostic", got)
+					t.Errorf("Check() = %q, ожидалось отсутствие диагностики", got)
 				}
 			} else {
 				if !strings.Contains(got, tt.wantHas) {
-					t.Errorf("Check() = %q, want it to contain %q", got, tt.wantHas)
+					t.Errorf("Check() = %q, ожидалась подстрока %q", got, tt.wantHas)
 				}
 			}
 		})
@@ -92,12 +112,17 @@ func TestSensitiveRuleCustomKeywords(t *testing.T) {
 		wantHas string
 	}{
 		{
-			name:    "custom keyword ssn",
+			name:    "кастомное ключевое слово ssn",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"user ssn: "}},
 			wantHas: `"ssn"`,
 		},
 		{
-			name:    "default keyword password not flagged",
+			name:    "кастомное ключевое слово credit_card",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"credit_card="}},
+			wantHas: `"credit_card"`,
+		},
+		{
+			name:    "дефолтное password НЕ срабатывает при кастомных",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"password: "}},
 			wantHas: "",
 		},
@@ -108,11 +133,11 @@ func TestSensitiveRuleCustomKeywords(t *testing.T) {
 			got := rule.Check(tt.lc)
 			if tt.wantHas == "" {
 				if got != "" {
-					t.Errorf("Check() = %q, want no diagnostic", got)
+					t.Errorf("Check() = %q, ожидалось отсутствие диагностики", got)
 				}
 			} else {
 				if !strings.Contains(got, tt.wantHas) {
-					t.Errorf("Check() = %q, want it to contain %q", got, tt.wantHas)
+					t.Errorf("Check() = %q, ожидалась подстрока %q", got, tt.wantHas)
 				}
 			}
 		})

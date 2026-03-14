@@ -11,42 +11,62 @@ func TestEnglishRule(t *testing.T) {
 		want string
 	}{
 		{
-			name: "english only",
+			name: "только английский",
 			lc:   &LogCall{MsgParts: []string{"starting server on port 8080"}},
 			want: "",
 		},
 		{
-			name: "cyrillic",
+			name: "кириллица",
 			lc:   &LogCall{MsgParts: []string{"запуск сервера"}},
 			want: "log message must contain only English characters",
 		},
 		{
-			name: "mixed english and cyrillic",
+			name: "смесь английского и кириллицы",
 			lc:   &LogCall{MsgParts: []string{"server ошибка"}},
 			want: "log message must contain only English characters",
 		},
 		{
-			name: "chinese characters",
+			name: "китайские иероглифы",
 			lc:   &LogCall{MsgParts: []string{"服务器启动"}},
 			want: "log message must contain only English characters",
 		},
 		{
-			name: "numbers and punctuation only",
-			lc:   &LogCall{MsgParts: []string{"123-456: ok"}},
+			name: "японская катакана",
+			lc:   &LogCall{MsgParts: []string{"サーバー"}},
+			want: "log message must contain only English characters",
+		},
+		{
+			name: "акцентированная латиница (café)",
+			lc:   &LogCall{MsgParts: []string{"café connection"}},
+			want: "log message must contain only English characters",
+		},
+		{
+			name: "немецкий умлаут (straße)",
+			lc:   &LogCall{MsgParts: []string{"straße not found"}},
+			want: "log message must contain only English characters",
+		},
+		{
+			name: "только цифры и пунктуация",
+			lc:   &LogCall{MsgParts: []string{"200 OK, latency=15ms"}},
 			want: "",
 		},
 		{
-			name: "empty parts",
+			name: "пустые части",
 			lc:   &LogCall{MsgParts: nil},
 			want: "",
 		},
 		{
-			name: "cyrillic in concatenation part",
+			name: "кириллица в конкатенации",
 			lc: &LogCall{MsgParts: []string{
 				"status: ",
 				"ошибка",
 			}},
 			want: "log message must contain only English characters",
+		},
+		{
+			name: "пустая строка в частях",
+			lc:   &LogCall{MsgParts: []string{""}},
+			want: "",
 		},
 	}
 

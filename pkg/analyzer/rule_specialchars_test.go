@@ -11,62 +11,117 @@ func TestSpecialCharsRule(t *testing.T) {
 		want string
 	}{
 		{
-			name: "clean message",
+			name: "чистое сообщение",
 			lc:   &LogCall{MsgParts: []string{"server started"}},
 			want: "",
 		},
 		{
-			name: "exclamation mark",
+			name: "восклицательный знак",
 			lc:   &LogCall{MsgParts: []string{"server started!"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "multiple exclamation marks",
-			lc:   &LogCall{MsgParts: []string{"connection failed!!!"}},
+			name: "тройной восклицательный",
+			lc:   &LogCall{MsgParts: []string{"failed!!!"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "ellipsis three dots",
+			name: "три точки (эллипсис)",
 			lc:   &LogCall{MsgParts: []string{"loading..."}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "unicode ellipsis",
+			name: "юникодный эллипсис (…)",
 			lc:   &LogCall{MsgParts: []string{"loading\u2026"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "at sign",
+			name: "собака (@)",
 			lc:   &LogCall{MsgParts: []string{"user@host"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "emoji rocket",
+			name: "решётка (#)",
+			lc:   &LogCall{MsgParts: []string{"issue#123"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "доллар ($)",
+			lc:   &LogCall{MsgParts: []string{"cost $10"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "процент (%)",
+			lc:   &LogCall{MsgParts: []string{"100% done"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "крышка (^)",
+			lc:   &LogCall{MsgParts: []string{"a^b"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "амперсанд (&)",
+			lc:   &LogCall{MsgParts: []string{"a&b"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "звёздочка (*)",
+			lc:   &LogCall{MsgParts: []string{"use * wisely"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "тильда (~)",
+			lc:   &LogCall{MsgParts: []string{"path ~/home"}},
+			want: "log message must not contain special characters or emoji",
+		},
+		{
+			name: "эмодзи ракета",
 			lc:   &LogCall{MsgParts: []string{"deploying \U0001F680"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "emoji smile",
+			name: "эмодзи улыбка",
 			lc:   &LogCall{MsgParts: []string{"all good \U0001F600"}},
 			want: "log message must not contain special characters or emoji",
 		},
 		{
-			name: "colon and hyphen are allowed",
+			name: "двоеточие и дефис — разрешены",
 			lc:   &LogCall{MsgParts: []string{"status: ready - go"}},
 			want: "",
 		},
 		{
-			name: "single dot is allowed",
-			lc:   &LogCall{MsgParts: []string{"connecting to host.example.com"}},
+			name: "одна точка — разрешена",
+			lc:   &LogCall{MsgParts: []string{"host.example.com"}},
 			want: "",
 		},
 		{
-			name: "two dots are allowed",
+			name: "две точки — разрешены",
 			lc:   &LogCall{MsgParts: []string{"range 1..10"}},
 			want: "",
 		},
 		{
-			name: "empty parts",
+			name: "слэш — разрешён",
+			lc:   &LogCall{MsgParts: []string{"path /api/v1"}},
+			want: "",
+		},
+		{
+			name: "запятая — разрешена",
+			lc:   &LogCall{MsgParts: []string{"a, b, c"}},
+			want: "",
+		},
+		{
+			name: "знак равенства — разрешён",
+			lc:   &LogCall{MsgParts: []string{"key=value"}},
+			want: "",
+		},
+		{
+			name: "скобки — разрешены",
+			lc:   &LogCall{MsgParts: []string{"range (0, 100)"}},
+			want: "",
+		},
+		{
+			name: "пустые части",
 			lc:   &LogCall{MsgParts: nil},
 			want: "",
 		},
@@ -88,12 +143,14 @@ func TestIsEmoji(t *testing.T) {
 		r    rune
 		want bool
 	}{
-		{"rocket", '\U0001F680', true},
-		{"smile", '\U0001F600', true},
-		{"sun", '\u2600', true},
-		{"latin A", 'A', false},
-		{"digit 1", '1', false},
-		{"space", ' ', false},
+		{"ракета", '\U0001F680', true},
+		{"улыбка", '\U0001F600', true},
+		{"солнце", '\u2600', true},
+		{"ножницы (dingbat)", '\u2702', true},
+		{"латинская A", 'A', false},
+		{"цифра 1", '1', false},
+		{"пробел", ' ', false},
+		{"точка", '.', false},
 	}
 
 	for _, tt := range tests {
