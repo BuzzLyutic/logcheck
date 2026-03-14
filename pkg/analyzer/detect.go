@@ -2,42 +2,39 @@ package analyzer
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 )
 
-// logPackages перечисляет поддерживаемые пакеты логирования.
+// logPackages — множество поддерживаемых пакетов логирования.
 var logPackages = map[string]bool{
 	"log/slog":        true,
 	"go.uber.org/zap": true,
 }
 
-// logMethods отображает путь к пакету - имя метода - индекс аргумента сообщения.
+// logMethods — для каждого пакета: имя метода - индекс аргумента-сообщения.
+// Индекс нужен, потому что у некоторых методов перед сообщением идут
+// другие аргументы (context, level и т.д.).
 var logMethods = map[string]map[string]int{
 	"log/slog": {
-		// Package-level functions and *Logger methods — msg is the first arg.
 		"Debug": 0, "Info": 0, "Warn": 0, "Error": 0,
-		// *Context variants — arg 0 is context.Context, msg is arg 1.
 		"DebugContext": 1, "InfoContext": 1, "WarnContext": 1, "ErrorContext": 1,
-		// Log — arg 0 is context, arg 1 is level, msg is arg 2.
 		"Log": 2,
 	},
 	"go.uber.org/zap": {
-		// *zap.Logger — msg is the first arg.
 		"Debug": 0, "Info": 0, "Warn": 0, "Error": 0,
 		"DPanic": 0, "Panic": 0, "Fatal": 0,
-		// *zap.SugaredLogger — "w" (key-value) variants.
 		"Debugw": 0, "Infow": 0, "Warnw": 0, "Errorw": 0,
 		"DPanicw": 0, "Panicw": 0, "Fatalw": 0,
-		// *zap.SugaredLogger — "f" (format) variants.
 		"Debugf": 0, "Infof": 0, "Warnf": 0, "Errorf": 0,
 		"DPanicf": 0, "Panicf": 0, "Fatalf": 0,
 	},
 }
 
-// detectLogCall проверяет, является ли вызов известным лог-вызовом, и, если да,
-// извлекает аргумент с сообщением в LogCall.
+// detectLogCall проверяет, является ли call вызовом поддерживаемого логгера.
+// Если да — извлекает информацию о вызове в LogCall.
 func detectLogCall(pass *analysis.Pass, call *ast.CallExpr) (*LogCall, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
@@ -74,18 +71,25 @@ func detectLogCall(pass *analysis.Pass, call *ast.CallExpr) (*LogCall, bool) {
 		MsgPos: msgArg.Pos(),
 	}
 
-	// Попытка получить полное буквальное значение (простой строковый литерал).
+	// Извлекаем значение, если это простой строковый литерал.
 	lc.MsgLit, _ = extractStringLit(msgArg)
 
-	// Сборка всех фрагментов строки.
+	// Сохраняем исходный текст литерала (с кавычками) для автоисправления.
+	if lit, ok := msgArg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		lc.MsgRaw = lit.Value
+	}
+
+	// Собираем все строковые фрагменты (включая части конкатенации).
 	collectStringParts(msgArg, &lc.MsgParts)
 
 	return lc, true
 }
 
-// resolvePackagePath возвращает путь импорта пакета, которому принадлежит
-// метод/функция, на которые ссылается sel, но только если это поддерживаемый логгер.
+// resolvePackagePath определяет путь пакета, которому принадлежит
+// метод/функция, вызываемая через sel.
+// Возвращает пустую строку, если это не поддерживаемый логгер.
 func resolvePackagePath(pass *analysis.Pass, sel *ast.SelectorExpr) string {
+	// Случай 1: прямой вызов функции пакета (slog.Info).
 	if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
 		if fn, ok := obj.(*types.Func); ok {
 			if pkg := fn.Pkg(); pkg != nil && logPackages[pkg.Path()] {
@@ -94,7 +98,7 @@ func resolvePackagePath(pass *analysis.Pass, sel *ast.SelectorExpr) string {
 		}
 	}
 
-	// Вызов метода для типизированного получателя: logger.Info, sugar.Warnw, etc.
+	// Случай 2: вызов метода на переменной (logger.Info).
 	if selection, ok := pass.TypesInfo.Selections[sel]; ok {
 		if fn, ok := selection.Obj().(*types.Func); ok {
 			if pkg := fn.Pkg(); pkg != nil && logPackages[pkg.Path()] {

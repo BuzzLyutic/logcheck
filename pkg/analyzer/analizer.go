@@ -1,4 +1,7 @@
-// Пакет analyzer реализует линтер для лог-сообщений.
+// Package analyzer реализует линтер для проверки лог-сообщений в Go.
+//
+// Анализирует вызовы поддерживаемых логгеров (log/slog, go.uber.org/zap)
+// и проверяет сообщения на соответствие набору настраиваемых правил.
 package analyzer
 
 import (
@@ -9,7 +12,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-// Analyzer - это точка входа для logcheck линтера.
+// configPath хранит путь к файлу конфигурации.
+// Заполняется из флага -config при запуске.
+var configPath string
+
+// Analyzer — главная точка входа для линтера logcheck.
 var Analyzer = &analysis.Analyzer{
 	Name: "logcheck",
 	Doc: "checks log messages for style and security issues: " +
@@ -18,21 +25,35 @@ var Analyzer = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
 
-// defaultRules возвращает полное множество доступных проверок.
-func defaultRules() []Rule {
-	return []Rule{
-		&LowercaseRule{},
-		&EnglishRule{},
-		&SpecialCharsRule{},
-		&SensitiveRule{},
-	}
+func init() {
+	Analyzer.Flags.StringVar(
+		&configPath,
+		"config",
+		"",
+		"путь к файлу конфигурации (.logcheck.json)",
+	)
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	rules := defaultRules()
+	// Загружаем конфигурацию: из файла (если указан) или дефолтную.
+	cfg := defaultConfig()
+	if configPath != "" {
+		var err error
+		cfg, err = loadConfigFromFile(configPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Собираем набор активных правил.
+	rules, err := buildRules(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
+	// Нас интересуют только вызовы функций.
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}
@@ -45,10 +66,24 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
+		// Прогоняем каждое правило.
 		for _, r := range rules {
-			if msg := r.Check(lc); msg != "" {
-				pass.Reportf(lc.MsgPos, "%s", msg)
+			msg := r.Check(lc)
+			if msg == "" {
+				continue
 			}
+
+			d := analysis.Diagnostic{
+				Pos:     lc.MsgPos,
+				Message: msg,
+			}
+
+			// Если правило умеет предлагать исправление — добавляем.
+			if fr, ok := r.(FixableRule); ok {
+				d.SuggestedFixes = fr.Fix(lc)
+			}
+
+			pass.Report(d)
 		}
 	})
 
