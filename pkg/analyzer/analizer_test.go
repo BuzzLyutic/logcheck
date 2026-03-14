@@ -7,7 +7,6 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
-// TestAnalyzerSmoke проверяет, что анализатор работает без ошибок в коде, содержащем вызовы slog.
 func TestAnalyzerSmoke(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analyzer.Analyzer, "slogbasic")
@@ -36,4 +35,9 @@ func TestAnalyzerSlogContext(t *testing.T) {
 func TestAnalyzerMultiline(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analyzer.Analyzer, "multiline")
+}
+
+func TestAnalyzerFixLowercase(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.RunWithSuggestedFixes(t, testdata, analyzer.Analyzer, "fixlowercase")
 }

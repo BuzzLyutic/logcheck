@@ -1,17 +1,19 @@
 package analyzer
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestSensitiveRule(t *testing.T) {
+	// Дефолтное правило: стандартные ключевые слова, без паттернов.
 	rule := &SensitiveRule{}
 
 	tests := []struct {
 		name    string
 		lc      *LogCall
-		wantHas string // подстрока в диагностике ("" = нарушения нет)
+		wantHas string
 	}{
 		{
 			name:    "чистый литерал с ключевым словом — ОК",
@@ -59,7 +61,7 @@ func TestSensitiveRule(t *testing.T) {
 			wantHas: `"password"`,
 		},
 		{
-			name:    "ключевое слово как подстрока (userPassword)",
+			name:    "подстрока userPassword",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"userPassword="}},
 			wantHas: `"password"`,
 		},
@@ -75,11 +77,6 @@ func TestSensitiveRule(t *testing.T) {
 		},
 		{
 			name:    "пустые части",
-			lc:      &LogCall{MsgLit: "", MsgParts: nil},
-			wantHas: "",
-		},
-		{
-			name:    "только переменная (без частей)",
 			lc:      &LogCall{MsgLit: "", MsgParts: nil},
 			wantHas: "",
 		},
@@ -102,6 +99,7 @@ func TestSensitiveRule(t *testing.T) {
 }
 
 func TestSensitiveRuleCustomKeywords(t *testing.T) {
+	// Кастомные ключевые слова заменяют дефолтные.
 	rule := &SensitiveRule{
 		Keywords: []string{"ssn", "credit_card"},
 	}
@@ -122,8 +120,66 @@ func TestSensitiveRuleCustomKeywords(t *testing.T) {
 			wantHas: `"credit_card"`,
 		},
 		{
-			name:    "дефолтное password НЕ срабатывает при кастомных",
+			name:    "дефолтное password НЕ срабатывает",
 			lc:      &LogCall{MsgLit: "", MsgParts: []string{"password: "}},
+			wantHas: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rule.Check(tt.lc)
+			if tt.wantHas == "" {
+				if got != "" {
+					t.Errorf("Check() = %q, ожидалось отсутствие диагностики", got)
+				}
+			} else {
+				if !strings.Contains(got, tt.wantHas) {
+					t.Errorf("Check() = %q, ожидалась подстрока %q", got, tt.wantHas)
+				}
+			}
+		})
+	}
+}
+
+func TestSensitiveRulePatterns(t *testing.T) {
+	// Только паттерны, ключевые слова отключены (пустой слайс).
+	rule := &SensitiveRule{
+		Keywords: []string{}, // Явно пустой — дефолтные не используются.
+		Patterns: []*regexp.Regexp{
+			regexp.MustCompile(`(?i)bearer\s+`),
+			regexp.MustCompile(`(?i)auth[_-]?token`),
+		},
+	}
+
+	tests := []struct {
+		name    string
+		lc      *LogCall
+		wantHas string
+	}{
+		{
+			name:    "паттерн bearer срабатывает",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"Authorization: Bearer "}},
+			wantHas: "pattern",
+		},
+		{
+			name:    "паттерн auth_token срабатывает",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"auth_token="}},
+			wantHas: "pattern",
+		},
+		{
+			name:    "паттерн authToken (без разделителя) срабатывает",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"authToken: "}},
+			wantHas: "pattern",
+		},
+		{
+			name:    "нет совпадения с паттерном — ОК",
+			lc:      &LogCall{MsgLit: "", MsgParts: []string{"request id: "}},
+			wantHas: "",
+		},
+		{
+			name:    "чистый литерал — паттерн не проверяется",
+			lc:      &LogCall{MsgLit: "bearer token received", MsgParts: []string{"bearer token received"}},
 			wantHas: "",
 		},
 	}

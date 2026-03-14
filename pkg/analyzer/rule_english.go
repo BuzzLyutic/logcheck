@@ -2,9 +2,9 @@ package analyzer
 
 import "unicode"
 
-// EnglishRule проверяет, что сообщение лога содержит только английские (ASCII) буквы.
-// Non-ASCII буквы помечаются.
-// Числа, ASCII пунктуация и пробелы допускаются.
+// EnglishRule проверяет, что лог-сообщение содержит только английские (ASCII) символы.
+// Не-ASCII буквы (кириллица, CJK, арабские и т.д.) считаются нарушением.
+// Цифры, ASCII-пунктуация и пробелы разрешены.
 type EnglishRule struct{}
 
 func (r *EnglishRule) Name() string { return "english" }

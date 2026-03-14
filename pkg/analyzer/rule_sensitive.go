@@ -2,11 +2,12 @@ package analyzer
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
-// defaultSensitiveKeywords это список ключевых слов, которые указывают на то,
-// что в журнал заносятся конфиденциальные данные.
+// defaultSensitiveKeywords — ключевые слова, указывающие на
+// потенциально чувствительные данные.
 var defaultSensitiveKeywords = []string{
 	"password", "passwd", "pwd",
 	"secret",
@@ -17,32 +18,37 @@ var defaultSensitiveKeywords = []string{
 	"credential", "credentials",
 }
 
-// SensitiveRule проверяет, что сообщения журнала не содержат конфиденциальных данных.
+// SensitiveRule проверяет, что лог-сообщения не выводят чувствительные данные.
 //
-// Он помечает только сообщения, которые являются конкатенациями (строковый литерал +
-// переменная), поскольку этот шаблон предполагает, что значение регистрируется.
-// Чистые строковые литералы, такие как "token validated", не помечаются.
+// Срабатывает только на конкатенациях (строковый литерал + переменная),
+// потому что такой паттерн означает вывод значения переменной.
+// Чистые литералы вроде "token validated" не считаются нарушением.
 type SensitiveRule struct {
-	// Keywords переопределяет список ключевых слов по умолчанию, если он не пуст.
+	// Keywords переопределяет список ключевых слов (если не пуст).
 	Keywords []string
+
+	// Patterns — скомпилированные регулярные выражения для поиска
+	// чувствительных данных. Проверяются в дополнение к ключевым словам.
+	Patterns []*regexp.Regexp
 }
 
 func (r *SensitiveRule) Name() string { return "sensitive" }
 
 func (r *SensitiveRule) Check(lc *LogCall) string {
-	// Чистый строковый литерал - разработчик ввел сообщение полностью, переменная не интерполируется.
-	// Пропустить, чтобы избежать ложных срабатываний.
+	// Чистый строковый литерал — разработчик написал описательное сообщение,
+	// переменная не интерполируется. Пропускаем, чтобы избежать
+	// ложных срабатываний вроде "token validated".
 	if lc.MsgLit != "" {
 		return ""
 	}
 
-	// Вообще никаких частей строки (чистый переменный аргумент) — анализировать нечего.
+	// Нет строковых частей (чистая переменная) — нечего анализировать.
 	if len(lc.MsgParts) == 0 {
 		return ""
 	}
 
+	// Проверка по ключевым словам.
 	keywords := r.keywords()
-
 	for _, part := range lc.MsgParts {
 		lower := strings.ToLower(part)
 		for _, kw := range keywords {
@@ -54,11 +60,24 @@ func (r *SensitiveRule) Check(lc *LogCall) string {
 		}
 	}
 
+	// Проверка по регулярным выражениям (кастомные паттерны).
+	for _, part := range lc.MsgParts {
+		for _, pat := range r.Patterns {
+			if pat.MatchString(part) {
+				return fmt.Sprintf(
+					"log message may contain sensitive data (pattern %q)", pat.String(),
+				)
+			}
+		}
+	}
+
 	return ""
 }
 
 func (r *SensitiveRule) keywords() []string {
-	if len(r.Keywords) > 0 {
+	// Если Keywords явно задан (даже пустой слайс) — используем его.
+	// Это позволяет отключить ключевые слова, оставив только паттерны.
+	if r.Keywords != nil {
 		return r.Keywords
 	}
 

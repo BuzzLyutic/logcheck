@@ -3,27 +3,22 @@ package analyzer
 import (
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/tools/go/analysis"
 )
 
-// LowercaseRule проверяет, что сообщение лога начинается с маленькой буквы.
+// LowercaseRule проверяет, что лог-сообщение начинается со строчной буквы.
 type LowercaseRule struct{}
 
 func (r *LowercaseRule) Name() string { return "lowercase" }
 
 func (r *LowercaseRule) Check(lc *LogCall) string {
-	// Если сообщение — не простой строковый литерал (переменная,
-	// конкатенация, начинающаяся с переменной), мы не можем
-	// определить первый символ — пропускаем.
 	if lc.MsgLit == "" {
 		return ""
 	}
 
-	// Декодируем первый символ (руну) из строки.
-	// utf8.DecodeRuneInString безопаснее и понятнее, чем цикл for-range
-	// с return на первой итерации.
 	ch, size := utf8.DecodeRuneInString(lc.MsgLit)
 	if size == 0 {
-		// Пустая строка — нечего проверять.
 		return ""
 	}
 
@@ -32,4 +27,39 @@ func (r *LowercaseRule) Check(lc *LogCall) string {
 	}
 
 	return ""
+}
+
+// Fix предлагает заменить первую заглавную букву на строчную.
+// Работает только для ASCII-букв — для многобайтных символов (Ü, Ö)
+// автоисправление не предлагается, потому что размер руны в исходнике
+// может отличаться (escape-последовательности и т.д.).
+func (r *LowercaseRule) Fix(lc *LogCall) []analysis.SuggestedFix {
+	if lc.MsgLit == "" || lc.MsgRaw == "" {
+		return nil
+	}
+
+	ch, _ := utf8.DecodeRuneInString(lc.MsgLit)
+	if !unicode.IsUpper(ch) {
+		return nil
+	}
+
+	// Автоисправление только для ASCII (1 байт в исходнике = 1 байт замены).
+	if ch > unicode.MaxASCII {
+		return nil
+	}
+
+	lower := unicode.ToLower(ch)
+
+	return []analysis.SuggestedFix{
+		{
+			Message: "заменить первую букву на строчную",
+			TextEdits: []analysis.TextEdit{
+				{
+					Pos:     lc.MsgPos + 1, // +1 — пропускаем открывающую кавычку
+					End:     lc.MsgPos + 2, // ASCII = 1 байт
+					NewText: []byte(string(lower)),
+				},
+			},
+		},
+	}
 }

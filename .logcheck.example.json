@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "lowercase": true,
+    "english": true,
+    "special_chars": true,
+    "sensitive": {
+      "enabled": true,
+      "keywords": [
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "private_key",
+        "privatekey",
+        "access_key",
+        "accesskey",
+        "credential",
+        "credentials"
+      ],
+      "patterns": [
+        "(?i)bearer[\\s=:]+",
+        "(?i)auth[_-]?token"
+      ]
+    }
+  }
+}
