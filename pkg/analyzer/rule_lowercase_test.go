@@ -11,33 +11,58 @@ func TestLowercaseRule(t *testing.T) {
 		want string
 	}{
 		{
-			name: "uppercase ASCII",
+			name: "заглавная ASCII",
 			lc:   &LogCall{MsgLit: "Starting server"},
 			want: "log message must start with a lowercase letter",
 		},
 		{
-			name: "lowercase ASCII",
+			name: "строчная ASCII",
 			lc:   &LogCall{MsgLit: "starting server"},
 			want: "",
 		},
 		{
-			name: "starts with digit",
+			name: "начинается с цифры",
 			lc:   &LogCall{MsgLit: "3 retries remaining"},
 			want: "",
 		},
 		{
-			name: "empty message",
+			name: "пустое сообщение",
 			lc:   &LogCall{MsgLit: ""},
 			want: "",
 		},
 		{
-			name: "single uppercase letter",
+			name: "одна заглавная буква",
 			lc:   &LogCall{MsgLit: "A"},
 			want: "log message must start with a lowercase letter",
 		},
 		{
-			name: "concatenation without literal",
-			lc:   &LogCall{MsgLit: "", MsgParts: []string{"hello"}},
+			name: "одна строчная буква",
+			lc:   &LogCall{MsgLit: "a"},
+			want: "",
+		},
+		{
+			name: "начинается с пунктуации",
+			lc:   &LogCall{MsgLit: "[server] ready"},
+			want: "",
+		},
+		{
+			name: "заглавная не-ASCII (Ü)",
+			lc:   &LogCall{MsgLit: "Über alles"},
+			want: "log message must start with a lowercase letter",
+		},
+		{
+			name: "строчная не-ASCII (ü)",
+			lc:   &LogCall{MsgLit: "über alles"},
+			want: "",
+		},
+		{
+			name: "конкатенация (MsgLit пуст) — пропускаем",
+			lc:   &LogCall{MsgLit: "", MsgParts: []string{"Hello"}},
+			want: "",
+		},
+		{
+			name: "пробел в начале",
+			lc:   &LogCall{MsgLit: " starting"},
 			want: "",
 		},
 	}
